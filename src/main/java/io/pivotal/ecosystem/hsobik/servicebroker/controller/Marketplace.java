@@ -41,7 +41,7 @@ public class Marketplace {
 
 	@Bean
 	PasswordGrantTokenProvider tokenProvider(@Value("${cf.username:admin}") String username,
-			@Value("${cf.password:Vlo-n0fXCKdYp5OkZOso-klkXJlwSnPu}") String password) {
+			@Value("${cf.password:Vlo-n0fXCKdYp5OkZOso-klkXJlwSnPuddd}") String password) {
 
 		System.out.println("tokenprovider username=" + username);
 		System.out.println("tokenprovider password=" + password);
