@@ -29,19 +29,21 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import reactor.core.publisher.Mono;
+
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
 public class Marketplace {
 
 	@Bean
-	DefaultConnectionContext connectionContext(@Value("${cf.apiHost:api.system.decelles.io}") String apiHost,
+	DefaultConnectionContext connectionContext(@Value("${cf.apiHost}") String apiHost,
 			@Value("${cf.skipSslValidation:true}") Boolean skipSslValidation) {
 		return DefaultConnectionContext.builder().apiHost(apiHost).skipSslValidation(skipSslValidation).build();
 	}
 
 	@Bean
-	PasswordGrantTokenProvider tokenProvider(@Value("${cf.username:admin}") String username,
-			@Value("${cf.password:Vlo-n0fXCKdYp5OkZOso-klkXJlwSnPu}") String password) {
+	PasswordGrantTokenProvider tokenProvider(@Value("${cf.username}") String username,
+			@Value("${cf.password}") String password) {
 
 		System.out.println("tokenprovider username=" + username);
 		System.out.println("tokenprovider password=" + password);
@@ -61,8 +63,8 @@ public class Marketplace {
 
 	@Bean
 	DefaultCloudFoundryOperations cloudFoundryOperations(CloudFoundryClient cloudFoundryClient,
-			DopplerClient dopplerClient, UaaClient uaaClient, @Value("${cf.organization:cjd-org}") String organization,
-			@Value("${cf.space:development}") String space) {
+			DopplerClient dopplerClient, UaaClient uaaClient,
+			@Value("${cf.organization}") String organization, @Value("${cf.space}") String space) {
 		return DefaultCloudFoundryOperations.builder().cloudFoundryClient(cloudFoundryClient)
 				.dopplerClient(dopplerClient).uaaClient(uaaClient).organization(organization).space(space).build();
 	}
@@ -80,7 +82,7 @@ public class Marketplace {
 	private CloudFoundryClient cloudFoundryClient;
 
 	@GetMapping("/test")
-	public JSONObject test() {
+	public Mono<ListServicesResponse> test() {
 
 		System.out.println("==== in test ====");
 
@@ -106,12 +108,16 @@ public class Marketplace {
 		// .id(resource.getMetadata().getId()).name(resource.getEntity().getName()).build())
 		// .subscribe(System.out::println);
 
-		cloudFoundryClient.services().list(ListServicesRequest.builder().build())
-				.flatMapIterable(ListServicesResponse::getResources).map(resource -> ServiceResource.builder()
-						.entity(ServiceEntity.builder().build()).build())
-						.subscribe(System.out::println);
+		Mono<ListServicesResponse> s = cloudFoundryClient.services().list(ListServicesRequest.builder().build());
 
-		
+		// .subscribe(System.out::println);
+
+		// .flatMapIterable(ListServicesResponse::getResources).map(resource ->
+		// ServiceResource.builder()
+		// .entity(ServiceEntity.builder().build()).build())
+		// .subscribe(System.out::println);
+
+
 		// cloudFoundryClient.services().list(ListServicesRequest.builder().build()).
 				//).subscribe(System.out::println);
 		// .metadata(Metadata.builder().build();
@@ -150,7 +156,7 @@ public class Marketplace {
 		// json.put("day_chg", String.valueOf(marketData.getDay_chg()));
 		// json.put("month_chg", String.valueOf(marketData.getMonth_chg()));
 		// json.put("year_chg", String.valueOf(marketData.getYear_chg()));
-		return json;
+		return s;
 
 		// return "";
 		// return new Greeting(counter.incrementAndGet(),
@@ -160,6 +166,12 @@ public class Marketplace {
 	@GetMapping("/marketplace")
 	public JSONObject marketplace() {
 		System.out.println("==== in greeting ====");
+
+		cloudFoundryClient.services().list(ListServicesRequest.builder().build())
+				.flatMapIterable(ListServicesResponse::getResources)
+				.map(resource -> ServiceResource.builder().entity(ServiceEntity.builder().build()).build())
+				.subscribe(System.out::println);
+
 		JSONObject json = new JSONObject();
 		json.put("timestamp", new Date().toString());
 
