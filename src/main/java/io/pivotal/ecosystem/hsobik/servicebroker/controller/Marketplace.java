@@ -1,6 +1,16 @@
 package io.pivotal.ecosystem.hsobik.servicebroker.controller;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.GeneralSecurityException;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Date;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.cloudfoundry.client.CloudFoundryClient;
 import org.cloudfoundry.client.v2.organizations.ListOrganizationsRequest;
@@ -25,15 +35,50 @@ import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.codec.Base64;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import reactor.core.publisher.Mono;
 
 @CrossOrigin(origins = "http://localhost:3000")
 @RestController
 public class Marketplace {
+
+	public Marketplace() {
+
+		// Install the all-trusting trust manager
+		try {
+			SSLContext sc = SSLContext.getInstance("SSL");
+			sc.init(null, trustAllCerts, new java.security.SecureRandom());
+			HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	private static TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+		public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+			return new X509Certificate[0];
+		}
+
+		public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {
+		}
+
+		public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {
+		}
+	} };
 
 	@Bean
 	DefaultConnectionContext connectionContext(@Value("${cf.apiHost}") String apiHost,
@@ -183,6 +228,49 @@ public class Marketplace {
 		// return "";
 		// return new Greeting(counter.incrementAndGet(),
 		// String.format(template, name));
+	}
+
+	@GetMapping("/serviceCatalog")
+	public JsonNode k8sServiceCatalog() {
+
+		String token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6IjRhNDA5YTUyLWY0MjQtNGFiOC1iY2Q5LWVkMmFjNGM5YTllNC10b2tlbi1nOW1jNCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiI0YTQwOWE1Mi1mNDI0LTRhYjgtYmNkOS1lZDJhYzRjOWE5ZTQiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiIxYjEzYjgyYy01NDYzLTExZTgtOTIwNi00MjAxYzBhODE0MGYiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDo0YTQwOWE1Mi1mNDI0LTRhYjgtYmNkOS1lZDJhYzRjOWE5ZTQifQ.n57MnxvoDIlpi5sJb9KelZdqWSEukEDVcV2nwVUyW-mbKx96cbFDsyS7S6smRo7nrPGO0CQhtk7BHjG_dc8ZH5ddHUz633GTi3TSI9QvVg_MiyGjkQ4w33V0ta1wc9ldRwypYPHerWd7r0AxizdnR9Cl39wmAhcL26JHwuEpXnSingEqZgoVOJP5tO2jV7wRNNVNo5Ic0wA_rLQV323CM7dH1VjPUnRWgqtDz0VR_gvAQtDCFJo0XGnu2kr9ToYopJzrFasBCD94FwqqT7BVaU7bYtAjjmR0bHcvDESpNNAMxIqhz86631r-001TdzLZZ9DXr54-xFCdrMbcS0KWlQ";
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+		headers.add("Authorization", "Bearer " + token);
+		System.out.println("headers = " + headers);
+
+		RestTemplate restTemplate = new RestTemplate();
+		String fooResourceUrl = "https://35.185.58.92:8443/apis/servicecatalog.k8s.io/v1beta1/clusterservicebrokers";
+		// HttpEntity<> request = new HttpEntity<>(null, headers);
+		ResponseEntity<String> response = restTemplate.exchange(fooResourceUrl, HttpMethod.GET,
+				new HttpEntity<>(null, headers), String.class);
+
+		// restTemplate.getfo
+		ObjectMapper mapper = new ObjectMapper();
+		JsonNode root = null;
+		try {
+			root = mapper.readTree(response.getBody());
+			System.out.println("response = " + response.getBody());
+
+			JsonNode name = root.path("name");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		// assertThat(name.asText(), notNullValue());
+
+		return root;
+	}
+
+	private String getAuthorizationHeader(String clientId, String clientSecret) {
+		String creds = String.format("%s:%s", clientId, clientSecret);
+		try {
+			return "Basic " + new String(Base64.encode(creds.getBytes("UTF-8")));
+		} catch (UnsupportedEncodingException e) {
+			throw new IllegalStateException("Could not convert String");
+		}
 	}
 
 }
